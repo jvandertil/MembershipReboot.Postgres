@@ -1,5 +1,6 @@
 ﻿using System.Configuration;
 using BrockAllen.MembershipReboot;
+using BrockAllen.MembershipReboot.Hierarchical;
 using Npgsql;
 using StructureMap;
 
@@ -18,6 +19,13 @@ namespace MembershipReboot.Postgres.Tests.Fixie
             }).Transient();
 
             cfg.For<IGroupRepository<HierarchicalGroup>>().Use<NpgsqlGroupRepository>();
+            cfg.For<IUserAccountRepository<HierarchicalUserAccount>>().Use<NpgsqlUserAccountRepository>();
+            cfg.For<MembershipRebootConfiguration<HierarchicalUserAccount>>().Use("test", ctx =>
+            {
+                var config = new MembershipRebootConfiguration<HierarchicalUserAccount>();
+
+                return config;
+            });
         });
 
         public IContainer Container { get; }
