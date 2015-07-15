@@ -1,15 +1,48 @@
 ﻿using BrockAllen.MembershipReboot;
 using BrockAllen.MembershipReboot.Hierarchical;
+using Shouldly;
 
 namespace MembershipReboot.Postgres.Tests
 {
     public class UserAccountServiceIntegrationTests
     {
-        public class TheCreateMethod
+        public class TheCreateAccountMethod
         {
-            public void Test(UserAccountService<HierarchicalUserAccount> service, string un)
+            public void CanCreateANewUserAccount(UserAccountService<HierarchicalUserAccount> service,
+                string username, string password)
             {
-                service.CreateAccount("Test", "Testpass", "test@test.nl");
+                string email = $"{username}@example.com";
+                var account = service.CreateAccount(username, password, email);
+
+                var fromDb = service.GetByID(account.ID);
+
+                fromDb.ShouldNotBe(null);
+                fromDb.Username.ShouldBe(username);
+                fromDb.Email.ShouldBe(email);
+            }
+        }
+
+        public class TheAuthenticateMethod
+        {
+            public void CanAuthenticateAnAccount(UserAccountService<HierarchicalUserAccount> service,
+                string username, string password)
+            {
+                string email = $"{username}@example.com";
+                service.CreateAccount(username, password, email);
+
+                service.Authenticate(username, password).ShouldBe(true);
+            }
+        }
+
+        public class TheSetMobilePhone
+        {
+            public void Test(UserAccountService<HierarchicalUserAccount> service,
+                string username, string password)
+            {
+                string email = $"{username}@example.com";
+                var account = service.CreateAccount(username, password, email);
+
+                service.AddCertificate(account.ID, "123456", "test");
             }
         }
     }

@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -16,20 +18,21 @@ namespace MembershipReboot.Postgres
     {
         protected override JsonProperty CreateProperty(MemberInfo member, MemberSerialization memberSerialization)
         {
-            JsonProperty property = base.CreateProperty(member, memberSerialization);
+            JsonProperty prop = base.CreateProperty(member, memberSerialization);
 
-            if (property.DeclaringType == typeof(HierarchicalUserAccount))
+            if (!prop.Writable)
             {
-                var info = member as PropertyInfo;
-                if (info != null)
+                var property = member as PropertyInfo;
+                if (property != null)
                 {
-                    property.ShouldSerialize = instance => info.CanWrite;
+                    var hasPrivateSetter = property.GetSetMethod(true) != null;
+                    prop.Writable = hasPrivateSetter;
                 }
 
-                //member.
+                prop.ShouldSerialize = instance => prop.Writable;
             }
 
-            return property;
+            return prop;
         }
     }
 
@@ -46,7 +49,7 @@ namespace MembershipReboot.Postgres
             {
                 ContractResolver = new WritablePropertiesOnlyResolver(),
                 TypeNameHandling = TypeNameHandling.Objects,
-                Formatting = Formatting.Indented
+                Formatting = Formatting.Indented,
             };
         }
 
@@ -79,66 +82,230 @@ namespace MembershipReboot.Postgres
             const string query = "DELETE FROM useraccounts " +
                                  "WHERE id = @id";
 
-            throw new NotImplementedException();
+            _conn.ExecuteCommand(query, cmd =>
+            {
+                cmd.Parameters.AddWithValue("id", item.ID);
+
+                return cmd.ExecuteNonQuery();
+            });
         }
 
         public void Update(HierarchicalUserAccount item)
         {
             const string query = "UPDATE useraccounts " +
                                  "SET tenant = @tenant, " +
-                                 "SET username = @username, " +
-                                 "SET email = @email, " +
-                                 "SET hashed_password = @password, " +
-                                 "SET account = @account " +
+                                 " username = @username, " +
+                                 " email = @email, " +
+                                 " hashed_password = @password, " +
+                                 " account = @account " +
                                  "WHERE id = @id";
 
-            throw new NotImplementedException();
+            _conn.ExecuteCommand(query, cmd =>
+            {
+                cmd.Parameters.AddWithValue("id", item.ID);
+                cmd.Parameters.AddWithValue("tenant", item.Tenant);
+                cmd.Parameters.AddWithValue("username", item.Username);
+                cmd.Parameters.AddWithValue("email", item.Email);
+                cmd.Parameters.AddWithValue("password", item.HashedPassword);
+                cmd.Parameters.AddWithValue("account", Serialize(item));
+
+                return cmd.ExecuteNonQuery();
+            });
         }
 
         public HierarchicalUserAccount GetByID(Guid id)
         {
-            const string query = "SELECT * FROM useraccounts WHERE id = @id";
-            throw new NotImplementedException();
+            const string query = "SELECT account " +
+                                 "FROM useraccounts " +
+                                 "WHERE id = @id";
+
+            return _conn.ExecuteCommand(query, cmd =>
+            {
+                cmd.Parameters.AddWithValue("id", id);
+
+                using (var reader = cmd.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        return Deserialize(reader);
+                    }
+
+                    return null;
+                }
+            });
         }
 
         public HierarchicalUserAccount GetByUsername(string username)
         {
-            const string query = "SELECT * FROM useraccounts WHERE username = @username";
-            throw new NotImplementedException();
+            const string query = "SELECT account " +
+                                 "FROM useraccounts " +
+                                 "WHERE username = @username";
+
+            return _conn.ExecuteCommand(query, cmd =>
+            {
+                cmd.Parameters.AddWithValue("username", username);
+
+                using (var reader = cmd.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        return Deserialize(reader);
+                    }
+
+                    return null;
+                }
+            });
         }
 
         public HierarchicalUserAccount GetByUsername(string tenant, string username)
         {
-            const string query = "SELECT * FROM useraccounts WHERE tenant = @tenant AND username = @username";
-            return null;
-            throw new NotImplementedException();
+            const string query = "SELECT account " +
+                                 "FROM useraccounts " +
+                                 "WHERE tenant = @tenant " +
+                                 " AND username = @username";
+
+            return _conn.ExecuteCommand(query, cmd =>
+            {
+                cmd.Parameters.AddWithValue("tenant", tenant);
+                cmd.Parameters.AddWithValue("username", username);
+
+                using (var reader = cmd.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        return Deserialize(reader);
+                    }
+
+                    return null;
+                }
+            });
         }
 
         public HierarchicalUserAccount GetByEmail(string tenant, string email)
         {
-            const string query = "SELECT * FROM useraccounts WHERE tenant = @tenant AND email = @email";
-            return null;
-            throw new NotImplementedException();
+            const string query = "SELECT account " +
+                                 "FROM useraccounts " +
+                                 "WHERE tenant = @tenant " +
+                                 " AND email = @email";
+
+            return _conn.ExecuteCommand(query, cmd =>
+            {
+                cmd.Parameters.AddWithValue("tenant", tenant);
+                cmd.Parameters.AddWithValue("email", email);
+
+                using (var reader = cmd.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        return Deserialize(reader);
+                    }
+
+                    return null;
+                }
+            });
         }
 
         public HierarchicalUserAccount GetByMobilePhone(string tenant, string phone)
         {
-            throw new NotImplementedException();
+            const string query = "SELECT account " +
+                     "FROM useraccounts " +
+                     "WHERE tenant = @tenant" +
+                     " AND account->>'MobilePhoneNumber'= @phone";
+
+            return _conn.ExecuteCommand(query, cmd =>
+            {
+                cmd.Parameters.AddWithValue("tenant", tenant);
+                cmd.Parameters.AddWithValue("phone", phone);
+
+                using (var reader = cmd.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        return Deserialize(reader);
+                    }
+
+                    return null;
+                }
+            });
         }
 
         public HierarchicalUserAccount GetByVerificationKey(string key)
         {
-            throw new NotImplementedException();
+            const string query = "SELECT account " +
+                                 "FROM useraccounts " +
+                                 "WHERE account->>'VerificationKey'= @key";
+
+            return _conn.ExecuteCommand(query, cmd =>
+            {
+                cmd.Parameters.AddWithValue("key", key);
+
+                using (var reader = cmd.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        return Deserialize(reader);
+                    }
+
+                    return null;
+                }
+            });
         }
 
         public HierarchicalUserAccount GetByLinkedAccount(string tenant, string provider, string id)
         {
-            throw new NotImplementedException();
+            const string query = "SELECT account " +
+                                 "FROM useraccounts u " +
+                                 "INNER JOIN " +
+                                 " (SELECT id," +
+                                 " (jsonb_array_elements(account->'LinkedAccountCollection')->>'ProviderName' = @provider) as hasProvider," +
+                                 " (jsonb_array_elements(account->'LinkedAccountCollection')->>'ProviderAccountID' = @id) as accountExists" +
+                                 " FROM useraccounts) t " +
+                                 "ON u.id = t.id " +
+                                 "WHERE t.hasProvider = true " +
+                                 "  AND t.accountExists = true";
+
+            return _conn.ExecuteCommand(query, cmd =>
+            {
+                cmd.Parameters.AddWithValue("provider", provider);
+                cmd.Parameters.AddWithValue("id", id);
+
+                using (var reader = cmd.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        return Deserialize(reader);
+                    }
+
+                    return null;
+                }
+            });
         }
 
         public HierarchicalUserAccount GetByCertificate(string tenant, string thumbprint)
         {
-            throw new NotImplementedException();
+            const string query = "SELECT account " +
+                                 "FROM useraccounts u " +
+                                 "INNER JOIN " +
+                                 " (SELECT id, " +
+                                 " (jsonb_array_elements(account->'UserCertificateCollection')->>'Thumbprint' = @thumbprint) as hasThumbprint " +
+                                 " FROM useraccounts) t " +
+                                 "ON u.id = t.id " +
+                                 "WHERE t.hasThumbprint = true";
+
+            return _conn.ExecuteCommand(query, cmd =>
+            {
+                cmd.Parameters.AddWithValue("thumbprint", thumbprint);
+
+                using (var reader = cmd.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        return Deserialize(reader);
+                    }
+
+                    return null;
+                }
+            });
         }
 
         private string Serialize(HierarchicalUserAccount item)
@@ -159,6 +326,13 @@ namespace MembershipReboot.Postgres
             {
                 return _serializer.Deserialize<HierarchicalUserAccount>(reader);
             }
+        }
+
+        private HierarchicalUserAccount Deserialize(IDataReader reader)
+        {
+            int accountOrdinal = reader.GetOrdinal("account");
+            var serialized = reader.GetString(accountOrdinal);
+            return Deserialize(serialized);
         }
     }
 }
