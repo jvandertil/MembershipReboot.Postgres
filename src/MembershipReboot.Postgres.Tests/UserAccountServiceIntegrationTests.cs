@@ -37,12 +37,12 @@ namespace MembershipReboot.Postgres.Tests
         public class TheSetMobilePhone
         {
             public void Test(UserAccountService<HierarchicalUserAccount> service,
-                string username, string password)
+                string username, string password, string certThumb)
             {
                 string email = $"{username}@example.com";
                 var account = service.CreateAccount(username, password, email);
 
-                service.AddCertificate(account.ID, "123456", "test");
+                service.AddCertificate(account.ID, certThumb, username);
             }
         }
     }

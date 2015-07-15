@@ -23,7 +23,9 @@ namespace MembershipReboot.Postgres.Tests.Fixie
             cfg.For<MembershipRebootConfiguration<HierarchicalUserAccount>>().Use("test", ctx =>
             {
                 var config = new MembershipRebootConfiguration<HierarchicalUserAccount>();
-                //config.PasswordHashingIterationCount = 100*1000;
+                
+                // Low amount of iterations to speed up testing.
+                config.PasswordHashingIterationCount = 100;
 
                 // Accounts can be valid immediately in testing.
                 config.RequireAccountVerification = false;
