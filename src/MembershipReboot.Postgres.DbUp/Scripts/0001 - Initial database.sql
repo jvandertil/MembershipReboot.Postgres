@@ -1,8 +1,4 @@
-﻿-- Table: groups
-
--- DROP TABLE groups;
-
-CREATE TABLE groups
+﻿CREATE TABLE groups
 (
   id uuid NOT NULL,
   tenant character varying(50) NOT NULL,
@@ -16,12 +12,6 @@ CREATE TABLE groups
 WITH (
   OIDS=FALSE
 );
-ALTER TABLE groups
-  OWNER TO postgres;
-
--- Table: useraccounts
-
--- DROP TABLE useraccounts;
 
 CREATE TABLE useraccounts
 (
@@ -36,5 +26,4 @@ CREATE TABLE useraccounts
 WITH (
   OIDS=FALSE
 );
-ALTER TABLE useraccounts
-  OWNER TO postgres;
+
